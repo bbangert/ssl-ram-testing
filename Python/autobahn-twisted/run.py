@@ -1,3 +1,4 @@
+#!/usr/bin/env python2.7
 import os
 import sys
 
@@ -9,6 +10,7 @@ from twisted.internet import reactor, task
 from ssl_settings import SSLContextFactory
 
 clients = {}
+PORT = os.environ.get("SERVER_PORT", "9000")
 
 
 def client_count():
@@ -34,13 +36,15 @@ if __name__ == '__main__':
     l.start(1.0)
 
     if os.environ.get("USE_SSL"):
-        factory = WebSocketServerFactory("wss://localhost:9000", debug=False)
+        factory = WebSocketServerFactory("wss://localhost:%s" % PORT,
+                                         debug=False)
         factory.protocol = MyServerProtocol
         ctx_factory = SSLContextFactory("../../keys/server.key",
                                         "../../keys/server.crt")
         listenWS(factory, ctx_factory)
     else:
-        factory = WebSocketServerFactory("ws://localhost:9000", debug=False)
+        factory = WebSocketServerFactory("ws://localhost:%s" % PORT,
+                                         debug=False)
         factory.protocol = MyServerProtocol
         reactor.listenTCP(9000, factory)
     reactor.run()
