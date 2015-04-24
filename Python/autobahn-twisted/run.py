@@ -6,7 +6,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, \
 from twisted.python import log
 from twisted.internet import reactor, task
 
-from ssl import SSLContextFactory
+from ssl_settings import SSLContextFactory
 
 clients = {}
 
@@ -17,6 +17,7 @@ def client_count():
 
 class MyServerProtocol(WebSocketServerProtocol):
     def onConnect(self, request):
+        self.transport.bufferSize = 2 * 1024
         clients[self] = True
 
     def onMessage(self, payload, isBinary):

@@ -9,6 +9,7 @@ from twisted.internet import reactor, ssl
 from twisted.internet.defer import Deferred, inlineCallbacks
 
 
+CLIENT_COUNT = int(os.environ.get("CLIENT_COUNT", "1000"))
 PING_INTERVAL = int(os.environ.get("PING_INTERVAL", "30"))
 
 
@@ -19,15 +20,13 @@ def sleep(delay):
 
 
 class MyClientProtocol(WebSocketClientProtocol):
-    @inlineCallbacks
     def onOpen(self):
-        # start sending messages every second ..
-        while True:
-            self.sendMessage(u"ping!".encode('utf8'))
-            yield sleep(PING_INTERVAL)
+        self.sendMessage(u"ping!".encode('utf8'))
 
+    @inlineCallbacks
     def onMessage(self, payload, isBinary):
-        pass
+        yield sleep(PING_INTERVAL)
+        self.sendMessage(u"ping!".encode('utf8'))
 
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
@@ -44,6 +43,6 @@ if __name__ == '__main__':
     else:
         contextFactory = None
 
-    for i in xrange(1000):
+    for i in xrange(CLIENT_COUNT):
         reactor.callLater(i/100.0, connectWS, factory, contextFactory)
     reactor.run()
