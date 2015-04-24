@@ -24,10 +24,7 @@ class MyServerProtocol(WebSocketServerProtocol):
         self.sendMessage(payload, isBinary)
 
     def onClose(self, wasClean, code, reason):
-        try:
-            del clients[self]
-        except:
-            pass
+        clients.pop(self, None)
 
 
 if __name__ == '__main__':

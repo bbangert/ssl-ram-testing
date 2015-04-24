@@ -1,7 +1,7 @@
 from OpenSSL import SSL
 from twisted.internet import ssl
 
-MOZILLA_INTERMEDIATE_CIPHERS = (
+INTERMEDIATE_CIPHERS = (
     'ECDHE-RSA-AES128-GCM-SHA256:'
     'ECDHE-ECDSA-AES128-GCM-SHA256:'
     'ECDHE-RSA-AES256-GCM-SHA384:'
@@ -40,7 +40,7 @@ class SSLContextFactory(ssl.DefaultOpenSSLContextFactory):
         if self._context is None:
             ctx = self._contextFactory(self.sslmethod)
 
-            ctx.set_cipher_list(MOZILLA_INTERMEDIATE_CIPHERS)
+            ctx.set_cipher_list(INTERMEDIATE_CIPHERS)
             ctx.set_options(SSL.OP_CIPHER_SERVER_PREFERENCE)
             ctx.set_options(SSL.OP_NO_SSLv2)
             ctx.set_options(SSL.OP_NO_SSLv3)
