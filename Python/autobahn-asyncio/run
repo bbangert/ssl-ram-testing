@@ -1,32 +1,20 @@
 #!py34/bin/python
+import asyncio
 import os
 import ssl
 
 from autobahn.asyncio.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 
-clients = {}
 PORT = int(os.environ.get("SERVER_PORT", "9000"))
 
 
 class MyServerProtocol(WebSocketServerProtocol):
-    def onConnect(self, request):
-        clients[self] = True
-
     def onMessage(self, payload, isBinary):
         self.sendMessage(payload, isBinary)
 
-    def onClose(self, wasClean, code, reason):
-        clients.pop(self, None)
-
 
 if __name__ == '__main__':
-    try:
-        import asyncio
-    except ImportError:
-        # Trollius >= 0.3 was renamed
-        import trollius as asyncio
-
     if os.environ.get("USE_SSL"):
         factory = WebSocketServerFactory("wss://localhost:%s" % PORT,
                                          debug=False)
