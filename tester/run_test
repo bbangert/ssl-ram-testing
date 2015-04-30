@@ -9,12 +9,17 @@ Options:
 
 """
 import os
-import os.path
+import re
 import shlex
 import subprocess
 import time
+import threading
+import Queue
 
 from docopt import docopt
+import psutil
+
+here_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 class Process(object):
@@ -27,33 +32,150 @@ class Process(object):
         self.env = env or os.environ
         self.command = shlex.split(os.path.join(self.process_dir, cmd))
         self.proc = None
+        self.output_thread = threading.Thread(target=self.consume_output)
+        self.output = Queue.Queue()
+        self.should_consume = True
         if not os.path.exists(command):
             raise Exception("Unable to find command: %s" % command)
 
     def run(self):
         self.proc = subprocess.Popen(self.command,
                                      cwd=self.process_dir,
-                                     env=self.env)
+                                     env=self.env,
+                                     stdout=subprocess.PIPE,
+                                     bufsize=-1)
+        if self.is_running():
+            self.output_thread.start()
 
     def terminate(self):
         if self.proc:
             self.proc.terminate()
+            if self.output_thread.is_alive():
+                self.should_consume = False
+                self.output_thread.join()
 
     def is_running(self):
         """Indicate if the program is running."""
         return not self.proc or self.proc.poll() is None
 
+    def process_line(self, line):
+        pass
+
+    def consume_output(self):
+        while self.should_consume:
+            line = self.proc.stdout.readline()
+            self.process_line(line)
+            self.output.put(line.rstrip("\n"))
+
+    def get_output(self):
+        line = True
+        lines = []
+        while line:
+            try:
+                line = self.output.get_nowait()
+                lines.append(line)
+                self.output.task_done()
+            except Queue.Empty:
+                line = False
+        return lines
+
+    def wait_for_output_stop(self, interval=2):
+        while True:
+            if not self.is_running():
+                raise Exception("Program (%s) is not running." % self.command)
+            if not self.get_output():
+                return True
+            time.sleep(interval)
+
+    def rss_usage(self):
+        if not self.proc.pid:
+            return None
+        p = psutil.Process(self.proc.pid)
+        return p.get_memory_info()[0]
+
+
+class TestProcess(Process):
+    count_re = re.compile(r".*?Clients=(\d+)")
+
+    def __init__(self, command, env=None):
+        super(TestProcess, self).__init__(command, env)
+        self.client_count = 0
+
+    def process_line(self, line):
+        result = self.count_re.match(line)
+        if result:
+            self.client_count = int(result.group(1))
+
+    def wait_for(self, total=1000, max_time=60):
+        """Wait until our client total has hit the total, don't wait
+        more than the max_time"""
+        start = time.time()
+        while self.client_count != total and (time.time()-start) <= max_time:
+            time.sleep(0.2)
+        return self.client_count == total
+
+
+def wait_on_memory(proc, interval=10, max_time=60):
+    """Wait until memory hasn't increased in the past interval seconds, don't
+    wait more than max_time for this to settle."""
+    start = time.time()
+    max_mem = mem_now = proc.rss_usage()
+    interval_start = time.time()
+    now = time.time()
+    while now-start <= max_time and now-interval_start < interval:
+        mem_now = proc.rss_usage()
+        now = time.time()
+        if mem_now > max_mem:
+            interval_start = now
+            max_mem = mem_now
+        time.sleep(0.5)
+    return now-interval_start >= interval
+
+
+def run_test(script_name, use_ssl=False):
+    env = os.environ.copy()
+    if use_ssl:
+        env["USE_SSL"] = "true"
+
+    program = Process(script_name, env=env)
+    program.run()
+    time.sleep(5)
+    program.wait_for_output_stop()
+    total_rss = program.rss_usage()
+    print "Program started."
+
+    # Spin up the tester
+    tester = TestProcess(os.path.join(here_dir, "client"), env=env)
+    tester.run()
+    print "Tester started."
+    connected = tester.wait_for()
+    if not connected:
+        raise Exception("Failed to connect all clients within time allotted")
+
+    print "Tester finished connecting."
+    wait_on_memory(program)
+    print "Program memory stopped increasing."
+    new_total = program.rss_usage()
+    print "Started with: %s" % total_rss
+    print "Ended with: %s" % new_total
+
+    per_conn = (float(new_total) - total_rss) / 1000 / 1024
+    print "kB per connection: %0.2f" % per_conn
+
+    tester.terminate()
+    program.terminate()
+    return per_conn
+
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='SSL RAM Overhead Tester 1.0')
-    script_name = os.path.join(arguments["<test_dir>"], "run.py")
+    script_name = os.path.join(arguments["<test_dir>"], "run")
     if not os.path.exists(script_name):
         raise Exception("Failed to find program: %s" % script_name)
 
-    program = Process(script_name)
-    program.run()
-    time.sleep(1)
-    if not program.is_running():
-        raise Exception("What program?")
-    time.sleep(20)
-    program.terminate()
+    print "No SSL"
+    no_ssl_conns = run_test(script_name)
+    print "\n"
+    print "SSL"
+    ssl_conns = run_test(script_name, use_ssl=True)
+    print "\nSSL Overhead per Conn: %0.2f" % (ssl_conns-no_ssl_conns)

@@ -1,3 +1,4 @@
+#!/usr/bin/env python2.7
 import os
 import sys
 
@@ -5,12 +6,18 @@ from autobahn.twisted.websocket import WebSocketClientProtocol, \
     WebSocketClientFactory, connectWS
 
 from twisted.python import log
-from twisted.internet import reactor, ssl
+from twisted.internet import reactor, ssl, task
 from twisted.internet.defer import Deferred, inlineCallbacks
 
 
 CLIENT_COUNT = int(os.environ.get("CLIENT_COUNT", "1000"))
 PING_INTERVAL = int(os.environ.get("PING_INTERVAL", "30"))
+
+clients = {}
+
+
+def client_count():
+    print "Clients=%s" % len(clients)
 
 
 def sleep(delay):
@@ -21,12 +28,16 @@ def sleep(delay):
 
 class MyClientProtocol(WebSocketClientProtocol):
     def onOpen(self):
+        clients[self] = True
         self.sendMessage(u"ping!".encode('utf8'))
 
     @inlineCallbacks
     def onMessage(self, payload, isBinary):
         yield sleep(PING_INTERVAL)
         self.sendMessage(u"ping!".encode('utf8'))
+
+    def onDisconnect(self, *args):
+        clients.pop(self, None)
 
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
@@ -42,6 +53,9 @@ if __name__ == '__main__':
         contextFactory = ssl.ClientContextFactory()
     else:
         contextFactory = None
+
+    counter = task.LoopingCall(client_count)
+    counter.start(1)
 
     for i in xrange(CLIENT_COUNT):
         reactor.callLater(i/100.0, connectWS, factory, contextFactory)
