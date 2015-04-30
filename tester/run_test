@@ -115,7 +115,7 @@ class TestProcess(Process):
         return self.client_count == total
 
 
-def wait_on_memory(proc, interval=10, max_time=60):
+def wait_on_memory(proc, interval=20, max_time=60):
     """Wait until memory hasn't increased in the past interval seconds, don't
     wait more than max_time for this to settle."""
     start = time.time()
@@ -137,6 +137,8 @@ def run_test(script_name, use_ssl=False):
     if use_ssl:
         env["USE_SSL"] = "true"
 
+    env["PING_INTERVAL"] = "10"
+
     program = Process(script_name, env=env)
     program.run()
     time.sleep(5)
@@ -153,8 +155,11 @@ def run_test(script_name, use_ssl=False):
         raise Exception("Failed to connect all clients within time allotted")
 
     print "Tester finished connecting."
-    wait_on_memory(program)
-    print "Program memory stopped increasing."
+    stopped = wait_on_memory(program)
+    if not stopped:
+        print "WARNING: Program hasn't stopped increasing."
+    else:
+        print "Program memory stopped increasing."
     new_total = program.rss_usage()
     print "Started with: %s" % total_rss
     print "Ended with: %s" % new_total
