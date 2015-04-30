@@ -4,6 +4,7 @@ syntax:glob
 *.pyc
 *.egg-info
 *.egg
+Python/autobahn-twisted/py27
 build
 dist
 docs/_build
