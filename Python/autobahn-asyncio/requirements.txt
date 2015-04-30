@@ -1,0 +1,4 @@
+autobahn==0.10.3
+six==1.9.0
+txaio==1.0.0
+wsaccel==0.6.2
