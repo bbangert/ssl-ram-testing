@@ -46,7 +46,6 @@ class SSLContextFactory(ssl.DefaultOpenSSLContextFactory):
             ctx.set_options(SSL.OP_NO_SSLv3)
             ctx.set_options(SSL.OP_NO_COMPRESSION)
             ctx.set_options(SSL.MODE_RELEASE_BUFFERS)
-            ctx.set_options(SSL.OP_ALL & ~SSL.OP_MICROSOFT_BIG_SSLV3_BUFFER)
 
             ctx.use_certificate_chain_file(self.certificateFileName)
             ctx.use_privatekey_file(self.privateKeyFileName)

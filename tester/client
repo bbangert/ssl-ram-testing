@@ -27,8 +27,10 @@ def sleep(delay):
 
 
 class MyClientProtocol(WebSocketClientProtocol):
+    @inlineCallbacks
     def onOpen(self):
         clients[self] = True
+        yield sleep(PING_INTERVAL)
         self.sendMessage(u"ping!".encode('utf8'))
 
     @inlineCallbacks
