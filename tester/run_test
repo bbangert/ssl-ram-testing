@@ -91,7 +91,8 @@ class Process(object):
         if not self.proc.pid:
             return None
         p = psutil.Process(self.proc.pid)
-        return p.get_memory_info()[0]
+        return sum([x.get_memory_info()[0] for x in
+                   [p] + p.get_children(recursive=True)])
 
 
 class TestProcess(Process):
