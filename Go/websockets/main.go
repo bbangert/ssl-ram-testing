@@ -12,7 +12,6 @@ func echoHandler(ws *websocket.Conn) {
 	go func() {
 		for data := range echoChan {
 			websocket.Message.Send(ws, data)
-
 		}
 	}()
 
