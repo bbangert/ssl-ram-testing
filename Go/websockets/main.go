@@ -3,17 +3,18 @@ package main
 import (
 	"code.google.com/p/go.net/websocket"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 )
 
 func echoHandler(ws *websocket.Conn) {
 	echoChan := make(chan string)
-	go func() {
+	go func(w *websocket.Conn) {
 		for data := range echoChan {
-			websocket.Message.Send(ws, data)
+			websocket.Message.Send(w, data)
 		}
-	}()
+	}(ws)
 
 	var d string
 	for true {
@@ -24,6 +25,10 @@ func echoHandler(ws *websocket.Conn) {
 	}
 }
 
+func echoCopyHandler(ws *websocket.Conn) {
+	io.Copy(ws, ws)
+}
+
 func main() {
 	var err error
 	port := ":9000"
@@ -31,7 +36,12 @@ func main() {
 		port = ":" + portString
 	}
 	useSSL := os.Getenv("USE_SSL") == "true"
-	http.Handle("/", websocket.Handler(echoHandler))
+
+	if os.Getenv("USE_COPY") == "true" {
+		http.Handle("/", websocket.Handler(echoCopyHandler))
+	} else {
+		http.Handle("/", websocket.Handler(echoHandler))
+	}
 
 	fmt.Printf("Running server on port %s\n", port)
 	if useSSL {
