@@ -48,6 +48,7 @@ For example:
     $ virtualenv myenv
     $ export PATH=`pwd`/myenv/bin:$PATH
     $ pip install -r tester/requirements.txt
+    $ . ./myenv/bin/activate
 
 The tester can then be run with a language/stack that was setup per its
 ``README.txt``:
