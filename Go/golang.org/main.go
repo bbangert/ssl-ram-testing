@@ -19,7 +19,7 @@ func echoHandler(ws *websocket.Conn) {
 
 	var d string
 	for true {
-		err := websocket.Message.Receive(ws, d)
+		err := websocket.Message.Receive(ws, &d)
 		if err == nil {
 			echoChan <- d
 		} else {
