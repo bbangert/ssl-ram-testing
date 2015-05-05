@@ -10,11 +10,12 @@ import (
 
 func echoHandler(ws *websocket.Conn) {
 	echoChan := make(chan string)
-	go func(w *websocket.Conn) {
+	defer close(echoChan)
+	go func() {
 		for data := range echoChan {
-			websocket.Message.Send(w, data)
+			websocket.Message.Send(ws, data)
 		}
-	}(ws)
+	}()
 
 	var d string
 	for true {

@@ -46,7 +46,8 @@ For example:
 .. code-block:: bash
 
     $ virtualenv myenv
-    $ ./myenv/bin/pip install -r tester/requirements.txt
+    $ export PATH=`pwd`/myenv/bin:$PATH
+    $ pip install -r tester/requirements.txt
 
 The tester can then be run with a language/stack that was setup per its
 ``README.txt``:
