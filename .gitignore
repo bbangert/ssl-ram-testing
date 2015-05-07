@@ -27,5 +27,8 @@ src/
 .eggs/
 Go/gorilla/gocode
 Go/golang.org/gocode
-*/*/run
+Go/*/run
 testenv/
+Haskell/yesod-tls/client_session_key.aes
+Haskell/*/.cabal-sandbox
+Haskell/*/cabal.sandbox.config
