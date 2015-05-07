@@ -12,6 +12,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import time
 import threading
 import Queue
@@ -116,7 +117,7 @@ class TestProcess(Process):
         return self.client_count == total
 
 
-def wait_on_memory(proc, interval=20, max_time=60):
+def wait_on_memory(proc, interval=60, max_time=360):
     """Wait until memory hasn't increased in the past interval seconds, don't
     wait more than max_time for this to settle."""
     start = time.time()
@@ -129,7 +130,13 @@ def wait_on_memory(proc, interval=20, max_time=60):
         if mem_now > max_mem:
             interval_start = now
             max_mem = mem_now
-        time.sleep(0.5)
+        wait_len = int(now-start)
+        int_len = int(now-interval_start)
+        sys.stdout.write("Waiting: {0}  Last Memory Increase: {1}{2}\r".format(
+                         wait_len, int_len, " "*10))
+        sys.stdout.flush()
+        time.sleep(1)
+    sys.stdout.write("\n")
     return now-interval_start >= interval
 
 
