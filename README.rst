@@ -34,8 +34,8 @@ tester will connect clients after output is not emitted for several seconds.
 It will be called for two runs, one with SSL, and one without. The program
 should use SSL when the ``USE_SSL`` environment variable is set to ``true``.
 
-Testing
-=======
+Setting up the Tester
+=====================
 
 The tester is a Python script with a Python websocket test client. To setup the
 tester a Python **2.7** virtualenv should be used, and ``tester/requirements.txt``
@@ -49,8 +49,12 @@ For example:
     $ export PATH=`pwd`/myenv/bin:$PATH
     $ pip install -r tester/requirements.txt
 
-The tester can then be run with a language/stack that was setup per its
-``README.txt``:
+Running the Tester
+==================
+
+The tester can be run with a language/stack that was setup per its
+``README.txt``, for example if we've already setup the
+``Python/autobahn-twisted`` project:
 
 .. code-block:: bash
 
