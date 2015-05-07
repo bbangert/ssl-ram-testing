@@ -5,6 +5,7 @@ syntax:glob
 *.egg-info
 *.egg
 Python/autobahn-twisted/py27
+Python/autobahn-asyncio/py34
 build
 dist
 docs/_build
@@ -24,3 +25,7 @@ pypy/
 src/
 .tox/
 .eggs/
+Go/gorilla/gocode
+Go/golang.org/gocode
+*/*/run
+testenv/
