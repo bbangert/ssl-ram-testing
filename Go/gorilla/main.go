@@ -30,6 +30,8 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	echoChan := make(chan message)
+	defer close(echoChan)
+
 	go func() {
 		for m := range echoChan {
 			conn.WriteMessage(m.Type, m.Body)
