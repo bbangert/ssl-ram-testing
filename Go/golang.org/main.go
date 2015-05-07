@@ -9,7 +9,7 @@ import (
 )
 
 func echoHandler(ws *websocket.Conn) {
-	echoChan := make(chan string)
+	echoChan := make(chan []byte)
 	defer close(echoChan)
 	go func() {
 		for data := range echoChan {
@@ -17,8 +17,8 @@ func echoHandler(ws *websocket.Conn) {
 		}
 	}()
 
-	var d string
 	for true {
+		var d []byte
 		err := websocket.Message.Receive(ws, &d)
 		if err == nil {
 			echoChan <- d
