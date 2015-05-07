@@ -14,5 +14,6 @@ $ nvm install 0.12.2
 $ nvm install iojs-v1.8.1
 
 $ nvm use 0.10.38
+$ npm install # Only needed for dependency updates or first use.
 $ ./run
 $ nvm deactivate # Restore the system-installed version.
