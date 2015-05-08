@@ -40,6 +40,8 @@ class Process(object):
             raise Exception("Unable to find command: %s" % command)
 
     def run(self):
+        """Start the process running, and capture its output to the output
+        queue"""
         self.proc = subprocess.Popen(self.command,
                                      cwd=self.process_dir,
                                      env=self.env,
@@ -49,6 +51,8 @@ class Process(object):
             self.output_thread.start()
 
     def terminate(self):
+        """Terminate the process if its running and halt the output collector
+        thread"""
         if self.proc:
             self.proc.terminate()
             if self.output_thread.is_alive():
@@ -60,15 +64,19 @@ class Process(object):
         return not self.proc or self.proc.poll() is None
 
     def process_line(self, line):
-        pass
+        """Placeholder function for specialized processing of output lines"""
 
     def consume_output(self):
+        """Started in a separate thread, consumes input and feeds each line
+        into the output queue"""
         while self.should_consume:
             line = self.proc.stdout.readline()
             self.process_line(line)
             self.output.put(line.rstrip("\n"))
 
     def get_output(self):
+        """Helper function that pulls all output off the output queue until
+        none remains and returns it as a list of lines."""
         line = True
         lines = []
         while line:
@@ -81,6 +89,8 @@ class Process(object):
         return lines
 
     def wait_for_output_stop(self, interval=2):
+        """Monitor the task until no output is emitted for ``interval``
+        seconds"""
         while True:
             if not self.is_running():
                 raise Exception("Program (%s) is not running." % self.command)
@@ -89,6 +99,8 @@ class Process(object):
             time.sleep(interval)
 
     def rss_usage(self):
+        """Report total RSS memory usage for the process and any child
+        processes"""
         if not self.proc.pid:
             return None
         p = psutil.Process(self.proc.pid)
@@ -97,6 +109,7 @@ class Process(object):
 
 
 class TestProcess(Process):
+    """Specialized Process sub-class that tracks client count output"""
     count_re = re.compile(r".*?Clients=(\d+)")
 
     def __init__(self, command, env=None):
@@ -104,6 +117,7 @@ class TestProcess(Process):
         self.client_count = 0
 
     def process_line(self, line):
+        """Match the line and update the client count as needed"""
         result = self.count_re.match(line)
         if result:
             self.client_count = int(result.group(1))
@@ -160,7 +174,7 @@ def run_test(script_name, use_ssl=False):
     print "Tester started."
     connected = tester.wait_for()
     if not connected:
-        raise Exception("Failed to connect all clients within time allotted")
+        print "WARNING: Failed to connect all clients"
 
     print "Tester finished connecting."
     stopped = wait_on_memory(program)
@@ -172,7 +186,7 @@ def run_test(script_name, use_ssl=False):
     print "Started with: %s" % total_rss
     print "Ended with: %s" % new_total
 
-    per_conn = (float(new_total) - total_rss) / 1000 / 1024
+    per_conn = (float(new_total) - total_rss) / tester.client_count / 1024
     print "kB per connection: %0.2f" % per_conn
 
     tester.terminate()
@@ -181,6 +195,8 @@ def run_test(script_name, use_ssl=False):
 
 
 if __name__ == '__main__':
+    if not os.path.exists("./results"):
+        os.mkdir("results")
     arguments = docopt(__doc__, version='SSL RAM Overhead Tester 1.0')
     script_name = os.path.join(arguments["<test_dir>"], "run")
     if not os.path.exists(script_name):
