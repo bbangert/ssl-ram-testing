@@ -1,0 +1,19 @@
+{
+  "name": "faye-ssl-ram-testing",
+  "version": "0.0.1",
+  "description": "WebSocket server RAM usage benchmarks.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:bbangert/ssl-ram-testing.git"
+  },
+  "author": "Kit Cambridge <github@kitcambridge.be> (http://kitcambridge.be/)",
+  "license": "MPL",
+  "bugs": {
+    "url": "https://github.com/bbangert/ssl-ram-testing/issues"
+  },
+  "homepage": "https://github.com/bbangert/ssl-ram-testing",
+  "dependencies": {
+    "websocket-driver": "^0.5.4"
+  }
+}

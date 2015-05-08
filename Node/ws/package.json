@@ -1,5 +1,5 @@
 {
-  "name": "ssl-ram-testing",
+  "name": "ws-ssl-ram-testing",
   "version": "0.0.1",
   "description": "WebSocket server RAM usage benchmarks.",
   "main": "index.js",
