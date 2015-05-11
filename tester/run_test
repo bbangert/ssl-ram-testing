@@ -122,24 +122,39 @@ class TestProcess(Process):
         if result:
             self.client_count = int(result.group(1))
 
-    def wait_for(self, total=1000, max_time=60):
+    def wait_for(self, watched_program, total=1000, max_time=60):
         """Wait until our client total has hit the total, don't wait
         more than the max_time"""
         start = time.time()
+        rss = watched_program.rss_usage()
+        results = [(start, rss, self.client_count)]
         while self.client_count != total and (time.time()-start) <= max_time:
-            time.sleep(0.2)
-        return self.client_count == total
+            time.sleep(1)
+            results.append((int(time.time()), watched_program.rss_usage(),
+                            self.client_count))
+
+        return (self.client_count == total, results)
 
 
-def wait_on_memory(proc, interval=60, max_time=360):
+def wait_on_memory(proc, interval=60, max_time=360, tester=None):
     """Wait until memory hasn't increased in the past interval seconds, don't
-    wait more than max_time for this to settle."""
+    wait more than max_time for this to settle.
+
+    :returns: Tuple indicating if memory every stopped increasing, and a
+              list of tuples corresponding to time, and RSS usage.
+
+    """
     start = time.time()
     max_mem = mem_now = proc.rss_usage()
     interval_start = time.time()
+    results = []
     now = time.time()
     while now-start <= max_time and now-interval_start < interval:
         mem_now = proc.rss_usage()
+        if tester:
+            results.append((int(now), mem_now, tester.client_count))
+        else:
+            results.append((int(now), mem_now, 0))
         now = time.time()
         if mem_now > max_mem:
             interval_start = now
@@ -151,7 +166,7 @@ def wait_on_memory(proc, interval=60, max_time=360):
         sys.stdout.flush()
         time.sleep(1)
     sys.stdout.write("\n")
-    return now-interval_start >= interval
+    return (now-interval_start >= interval, results)
 
 
 def run_test(script_name, use_ssl=False):
@@ -165,24 +180,30 @@ def run_test(script_name, use_ssl=False):
     program.run()
     time.sleep(5)
     program.wait_for_output_stop()
+
+    results = []
     total_rss = program.rss_usage()
+    results.append((int(time.time()), total_rss, 0))
     print "Program started."
 
     # Spin up the tester
     tester = TestProcess(os.path.join(here_dir, "client"), env=env)
     tester.run()
     print "Tester started."
-    connected = tester.wait_for()
+    connected, mem_results = tester.wait_for(program)
     if not connected:
         print "WARNING: Failed to connect all clients"
+    results.extend(mem_results)
 
     print "Tester finished connecting."
-    stopped = wait_on_memory(program)
+    stopped, mem_results = wait_on_memory(program, tester=tester)
     if not stopped:
         print "WARNING: Program hasn't stopped increasing."
     else:
         print "Program memory stopped increasing."
+    results.extend(mem_results)
     new_total = program.rss_usage()
+    results.append((int(time.time()), new_total, tester.client_count))
     print "Started with: %s" % total_rss
     print "Ended with: %s" % new_total
 
@@ -191,7 +212,68 @@ def run_test(script_name, use_ssl=False):
 
     tester.terminate()
     program.terminate()
-    return per_conn
+    return per_conn, tester.client_count, results
+
+
+def rewrite_results(results):
+    """Takes a list of tuples (time, memory), and rewrites the time to start
+    at 0"""
+    origin = results[0][0]
+    return [(x-origin, y, z) for x, y, z in results]
+
+
+def test_filename(script_name, prefix):
+    now = time.time()
+    result_filename = "%s-%s-%d.dat" % (script_name.replace("/", "_"), prefix,
+                                        now)
+    return result_filename
+
+
+def create_memory_results_list(nossl_results, ssl_results):
+    """Takes a list of SSL and NoSSL result tuples with client counts and
+    creates a single unified list of SSL and NoSSL results
+
+    This result list does not include client counts.
+
+    """
+    nossl_dict = {t: rss for t, rss, _ in nossl_results}
+    ssl_dict = {t: rss for t, rss, _ in ssl_results}
+
+    results = []
+    prior_ssl_result = ssl_results[0][1]
+    prior_nossl_result = nossl_results[0][1]
+    for n in range(max(ssl_results[-1][0], nossl_results[-1][0])+1):
+        ssl_rss = ssl_dict.get(n, prior_ssl_result)
+        nossl_rss = nossl_dict.get(n, prior_nossl_result)
+        prior_ssl_result = ssl_rss
+        prior_nossl_result = nossl_rss
+        results.append((n, nossl_rss, ssl_rss))
+    return results
+
+
+def per_conn(base_rss, current_rss, count):
+    return 0 if count == 0 else (current_rss-base_rss) / count
+
+
+def create_perconn_results_list(nossl_results, ssl_results):
+    """Takes a list of SSL and NoSSL result tuples with client counts and
+    returns a list with per-connection memory use over time."""
+    nossl_origin_memory = nossl_results[0][1]
+    ssl_origin_memory = ssl_results[0][1]
+    nossl_dict = {t: per_conn(nossl_origin_memory, rss, count) for
+                  t, rss, count in nossl_results}
+    ssl_dict = {t: per_conn(ssl_origin_memory, rss, count) for
+                t, rss, count in ssl_results}
+
+    results = []
+    prior_ssl_conn = prior_nossl_conn = 0
+    for n in range(max(ssl_results[-1][0], nossl_results[-1][0])+1):
+        ssl_conn = ssl_dict.get(n, prior_ssl_conn)
+        nossl_conn = nossl_dict.get(n, prior_nossl_conn)
+        prior_ssl_conn = ssl_conn
+        prior_nossl_conn = nossl_conn
+        results.append((n, nossl_conn, ssl_conn))
+    return results
 
 
 if __name__ == '__main__':
@@ -203,8 +285,33 @@ if __name__ == '__main__':
         raise Exception("Failed to find program: %s" % script_name)
 
     print "No SSL"
-    no_ssl_conns = run_test(script_name)
+    no_ssl_conns, count, results = run_test(script_name)
+    nossl_results = rewrite_results(results)
+
     print "\n"
     print "SSL"
-    ssl_conns = run_test(script_name, use_ssl=True)
+    ssl_conns, ssl_count, results = run_test(script_name, use_ssl=True)
+    ssl_results = rewrite_results(results)
+
+    nossl_dict = {k: (r, c) for k, r, c in nossl_results}
+    ssl_dict = {k: (r, c) for k, r, c in ssl_results}
+
+    # Build a list of tuples. (time, nossl_rss, ssl_rss). Substitute last value
+    # of any missing values.
+    result_filename = test_filename(arguments["<test_dir>"], "rss")
+    results = create_memory_results_list(nossl_results, ssl_results)
+    with open("results/" + result_filename, "w") as f:
+        f.write("# MEMORY USE FOR: %s\n#\n" % script_name)
+        f.write("TYPE\tNO_SSL\tSSL\n")
+        for t, nossl_rss, ssl_rss in results:
+            f.write("%s\t%s\t%s\n" % (t, nossl_rss, ssl_rss))
+
+    result_filename = test_filename(arguments["<test_dir>"], "perconn")
+    results = create_perconn_results_list(nossl_results, ssl_results)
+    with open("results/" + result_filename, "w") as f:
+        f.write("# MEMORY USE PER CONNECTION FOR: %s\n#\n" % script_name)
+        f.write("TYPE\tNO_SSL\tSSL\n")
+        for t, nossl_conn, ssl_conn in results:
+            f.write("%s\t%s\t%s\n" % (t, nossl_conn, ssl_conn))
+
     print "\nSSL Overhead per Conn: %0.2f" % (ssl_conns-no_ssl_conns)
