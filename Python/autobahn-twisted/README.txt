@@ -1,4 +1,4 @@
 Install:
 
-Create a virtualenv using **Python 3.4** in this directory named `py34`, then:
-$ ./py34/bin/pip install -r requirements.txt
+Create a virtualenv in this directory named `py27`, then:
+$ ./py27/bin/pip install -r requirements.txt
