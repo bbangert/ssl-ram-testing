@@ -1,0 +1,13 @@
+[package]
+name = "webpush-server"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+futures = "0.1"
+tokio-core = "0.1"
+tokio-proto = "0.1"
+tokio-tungstenite = "0.2"
+tokio-openssl = "0.1"
+openssl = "0.9"
+tungstenite = "0.2"
