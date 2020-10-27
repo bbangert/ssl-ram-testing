@@ -3,7 +3,7 @@ argparse==1.2.1
 autobahn==0.10.3
 cffi==0.9.2
 characteristic==14.3.0
-cryptography==0.8.2
+cryptography==3.2
 docopt==0.6.2
 enum34==1.0.4
 psutil==2.2.1
