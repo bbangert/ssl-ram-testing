@@ -1,6 +1,6 @@
 Twisted==15.1.0
 argparse==1.2.1
-autobahn==0.10.3
+autobahn==20.12.3
 cffi==0.9.2
 characteristic==14.3.0
 cryptography==0.8.2
